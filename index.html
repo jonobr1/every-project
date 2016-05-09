@@ -1,0 +1,392 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Every Project I Could Find Since I Graduated</title>
+    <link rel="stylesheet" type="text/css" href="./styles/main.css">
+  </head>
+  <body style="background: #efefef;">
+    <div id="container">
+      <div id="stage"></div>
+      <div id="navigation">
+
+        <span object-name="camera" property-name="focus" index="0">First</span>
+        <span object-name="camera" property-name="prev">Previous</span>
+        <span object-name="camera" property-name="next">Next</span>
+        <span object-name="camera" property-name="last">Last</span>
+
+        &middot;
+
+        <span object-name="Place" property-name="grid">Timeline</span>
+        <span object-name="Place" property-name="grid" index="popularity">Most Popular</span>
+        <span object-name="Place" property-name="grid" index="impact">Personally Enriching</span>
+        <span object-name="Place" property-name="grid" index="duration">Duration</span>
+
+        &middot;
+
+        <span object-name="Place" property-name="categorically" index="years">By Year</span>
+        <span object-name="Place" property-name="categorically" index="relationships">By Relationship</span>
+        <span object-name="Place" property-name="categorically" index="concentrations">By Concentrations</span>
+        <span object-name="Place" property-name="categorically" index="formats">By Format</span>
+        <span object-name="Place" property-name="categorically" index="economics">Commercial or Non-Commercial</span>
+
+      </div>
+    </div>
+    <div id="lobby">
+      <div>Loaded <span id="amt">0</span>/<span id="total">1</span></div>
+    </div>
+    <div class="scripts">
+      <script src="./third-party/underscore.js"></script>
+      <script src="./third-party/jquery.js"></script>
+      <script src="./third-party/three.js"></script>
+      <script src="./third-party/tween.js"></script>
+      <script src="./src/place.js"></script>
+      <script src="./src/label.js"></script>
+      <script>
+
+        var container = document.querySelector('#container');
+        var stage = document.querySelector('#stage');
+
+        var OFFSCREEN = new THREE.Vector3(- 10000, - 10000, - 10000);
+        var data, frameCount = 0, $a = document.createElement('a');
+        var renderer = new THREE.WebGLRenderer({ antialias: true });
+        var camera = new THREE.PerspectiveCamera(75, undefined, 0.01, 500);
+        var scene = new THREE.Scene();
+        var zero = new THREE.Vector3();
+        var thread, temp = new THREE.Vector3();
+
+        var handle = document.createElement('div');
+        handle.innerHTML = 'Ideate. May 6, 2016. Academy of Art University.<br />\@jonobr1';
+
+        _.extend(handle.style, {
+          position: 'fixed',
+          top: 5 + '%',
+          left: 5 + '%',
+          right: 0
+        });
+
+        var geometry = new THREE.PlaneGeometry(10, 10, 1, 1);
+        var material = new THREE.MeshBasicMaterial({
+          transparent: true
+        });
+        var loader = new THREE.TextureLoader().setPath('./images/');
+        var duration = 750;
+        var labels = [];
+
+        $.getJSON('./data/projects.json', pragma);
+
+        function pragma(resp) {
+
+          $('#total').html(resp.list.length);
+
+          resp.dimensions = {};
+          _.each(resp.schema.dimensions, function(s, k) {
+            resp.dimensions[k] = {};
+            _.each(s, function(t) {
+              resp.dimensions[k][t] = [];
+              var label = resp.dimensions[k][t].label = new Label(t);
+              label.position.copy(OFFSCREEN);
+              scene.add(label);
+            });
+          });
+
+          _.each(resp.list, function(project) {
+            for (var m in resp.dimensions) {
+              var n = project[(m + '').replace(/s$/i, '')];
+              resp.dimensions[m][n].push(project);
+            }
+          });
+
+          setup(resp);
+
+        }
+
+        function setup(resp) {
+
+          data = resp;
+
+          loader.loaded = _.after(data.list.length, function() {
+
+            thread = new THREE.Line(thread.geometry, thread.material);
+            scene.add(thread);
+
+            $a.appendChild(renderer.domElement);
+            stage.appendChild($a);
+            container.appendChild(handle);
+            loader.ready = true;
+
+            Place.randomly();
+            camera.focus(0);
+            $('#lobby').fadeOut();
+
+          });
+
+          thread = {
+            geometry: new THREE.Geometry(),
+            material: new THREE.LineBasicMaterial({
+              color: '#333',
+              linewidth: 1,
+              side: THREE.DoubleSide
+            })
+          };
+
+          _.each(data.list, addProject);
+
+          $a.href = '#';
+          $a.target = '_blank';
+          $a.cancel = function(e) {
+            e.preventDefault();
+            return false;
+          };
+
+          camera.far = 250;
+          camera.position.set(0, 0, 2000);
+          renderer.setClearColor('#efefef');
+          scene.fog = new THREE.Fog('#efefef', camera.near, camera.far);
+
+          camera.rotation.offset = new THREE.Vector3(
+            2 * Math.PI * Math.random(),
+            2 * Math.PI * Math.random(),
+            2 * Math.PI * Math.random()
+          );
+          camera.position.tween = new TWEEN.Tween(camera.position)
+            .easing(TWEEN.Easing.Circular.InOut);
+
+          camera.focus = function(index) {
+
+            if (_.isNumber(index) && index >= 0 && index < data.list.length) {
+              camera.index = index;
+            }
+
+            var project = data.list[index].mesh;
+            var p = new THREE.Vector3()
+              .add(project.position);
+
+            $a.href = project.data.href ? project.data.href : '#';
+            if (/\#/.test($a.href)) {
+              $a.addEventListener('click', $a.cancel, false);
+            } else {
+              $a.removeEventListener('click', $a.cancel, false);
+            }
+
+            p.z += 10;
+
+            camera.position.tween
+              .to(p.toObject(), duration)
+              .start();
+
+            return camera;
+
+          };
+          camera.next = function() {
+            camera.focus(mod(camera.index + 1, data.list.length));
+            return camera;
+          };
+          camera.prev = function() {
+            camera.focus(mod(camera.index - 1, data.list.length));
+            return camera;
+          };
+          camera.last = function() {
+            camera.focus(data.list.length - 1);
+            return camera;
+          };
+
+          _.extend(renderer.domElement.style, {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            background: '#efefef'
+          });
+
+          renderer.render(scene, camera);
+
+          window.addEventListener('resize', resize, false);
+
+          _.each(document.querySelectorAll('#navigation > *'), function(elem) {
+
+            var obj = elem.getAttribute('object-name');
+            var event = elem.getAttribute('property-name');
+            var index = elem.getAttribute('index');
+
+            $(elem).click(function() {
+              window[obj][event](index);
+            });
+
+          });
+
+          $(window)
+            .bind('resize', resize)
+            .bind('keyup', function(e) {
+              switch (String.fromCharCode(e.which).toLowerCase()) {
+
+                case '&':
+                  camera.focus(0)
+                  break;
+                case '(':
+                  camera.last();
+                  break;
+                case '%':
+                  camera.prev();
+                  break;
+                case '\'':
+                  camera.next();
+                  break;
+
+                case 'g':
+                  Place.grid();
+                  break;
+                case 'p':
+                  Place.grid('popularity');
+                  break;
+                case 'i':
+                  Place.grid('impact');
+                  break;
+                case 'd':
+                  Place.grid('duration');
+                  break;
+
+                case 'y':
+                  Place.categorically('years');
+                  break;
+                case 'r':
+                  Place.categorically('relationships');
+                  break;
+                case 'c':
+                  Place.categorically('concentrations');
+                  break;
+                case 'f':
+                  Place.categorically('formats');
+                  break;
+                case 'e':
+                  Place.categorically('economics');
+                  break;
+
+              }
+            })
+
+          resize();
+          loop();
+
+        }
+
+        function resize() {
+
+          var width = window.innerWidth;
+          var height = window.innerHeight;
+
+          renderer.setSize(width, height);
+          camera.aspect = width / height;
+          camera.updateProjectionMatrix();
+
+        }
+
+        function loop() {
+
+          requestAnimationFrame(loop);
+
+          if (!loader.ready) {
+            return;
+          }
+
+          TWEEN.update();
+
+          if (_.isNumber(camera.index)) {
+            var current = data.list[camera.index].mesh;
+            current.rotation.y = Math.PI
+              * Math.sin(frameCount / 30 + camera.rotation.offset.y) / 128;
+            current.rotation.x = Math.PI
+              * Math.sin(frameCount / 30 + camera.rotation.offset.x) / 128;
+          }
+
+          var mesh, i;
+
+          if (stillCalculating(Place.elements[0].position, Place.elements[0].destination.position)
+            || stillCalculating(Place.elements[0].scale, Place.elements[0].destination.scale)) {
+
+            for (i = 0; i < Place.elements.length; i++) {
+              mesh = Place.elements[i];
+              mesh.position.add(
+                temp.copy(mesh.destination.position)
+                  .sub(mesh.position)
+                  .multiplyScalar(0.33)
+              );
+              mesh.scale.add(
+                temp.copy(mesh.destination.scale)
+                  .sub(mesh.scale)
+                  .multiplyScalar(0.33)
+              );
+            }
+
+          }
+
+          for (i = 0; i < Label.elements.length; i++) {
+
+            mesh = Label.elements[i];
+            mesh.position.add(
+              temp.copy(mesh.destination.position)
+                .sub(mesh.position)
+                .multiplyScalar(0.33)
+            );
+            mesh.scale.add(
+              temp.copy(mesh.destination.scale)
+                .sub(mesh.scale)
+                .multiplyScalar(0.33)
+            );
+          }
+
+          thread.geometry.verticesNeedUpdate = true;
+
+          renderer.render(scene, camera);
+          frameCount++;
+
+        }
+
+        function addProject(project, i) {
+
+          var onload = function() {
+
+            var image = mesh.material.map.image;
+
+            mesh.destination.scale.x = image.width / image.height;
+            mesh.scale.x = mesh.destination.scale.x;
+            mesh.aspect = image.width / image.height;
+
+            scene.add(mesh);
+            $('#amt').html(parseInt($('#amt').html()) + 1);
+            loader.loaded();
+
+          };
+
+          var mesh = new THREE.Mesh(geometry, material.clone());
+          mesh.destination = { position: new THREE.Vector3(), scale: new THREE.Vector3() };
+          mesh.material.map = loader.load(project.url, onload);
+          mesh.material.map.minFilter = mesh.material.map.magFilter = THREE.LinearFilter;
+          mesh.material.generateMipMaps = false;
+
+          mesh.material.format = THREE.RGBFormat;
+          mesh.material.anisotropy = renderer.getMaxAnisotropy();
+          thread.geometry.vertices.push(mesh.position);
+
+          mesh.data = project;
+          project.mesh = mesh;
+          Place.register(mesh);
+
+          return mesh;
+
+        }
+
+        function mod(v, l) {
+          while (v < 0) {
+            v += l;
+          }
+          return v % l;
+        }
+
+        function stillCalculating(a, b) {
+          return a.distanceToSquared(b) > 0.001;
+        }
+
+      </script>
+    </div>
+  </body>
+</html>

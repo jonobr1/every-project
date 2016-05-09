@@ -1,0 +1,17 @@
+{
+  "name": "every-project",
+  "version": "1.0.0",
+  "description": "Every project I’ve made since I graduated. An html5 data-viz.",
+  "main": "index.html",
+  "dependencies": {
+    "fs": "0.0.2",
+    "path": "^0.12.7",
+    "underscore": "^1.8.3"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "jonobr1",
+  "license": "MIT"
+}

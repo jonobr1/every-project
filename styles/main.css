@@ -1,0 +1,42 @@
+* {
+  margin: 0;
+  padding: 0; }
+
+body {
+  text-align: left;
+  font: 500 20px/30px "Nuvo Pro", arial, sans-serif;
+  color: #333; }
+
+canvas {
+  background: #efefef; }
+
+#navigation {
+  position: fixed;
+  bottom: 5%;
+  left: 5%;
+  right: 5%;
+  text-align: center;
+  font-size: 15px;
+  line-height: 20px; }
+  #navigation > * {
+    display: inline-block;
+    text-decoration: underline;
+    margin: 5px;
+    cursor: pointer; }
+
+#lobby {
+  z-index: 9999;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #efefef; }
+  #lobby > * {
+    position: absolute;
+    top: 45%;
+    left: 0;
+    right: 0;
+    text-align: center; }
+
+/*# sourceMappingURL=main.css.map */
